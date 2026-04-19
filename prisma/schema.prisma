@@ -1,0 +1,62 @@
+// Gym Tracker — Prisma schema
+// Run `npx prisma migrate dev --name init` after filling DATABASE_URL.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Day {
+  push
+  pull
+  legs
+}
+
+model Exercise {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  day          Day
+  targetSets   Int      @default(4) @map("target_sets")
+  targetReps   String   @default("8-12") @map("target_reps")
+  notes        String?
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  sets         WorkoutSet[]
+
+  @@index([day, sortOrder])
+  @@map("exercises")
+}
+
+model WorkoutSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  day         Day
+  startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
+  notes       String?
+  sets        WorkoutSet[]
+
+  @@index([startedAt(sort: Desc)])
+  @@index([day, completedAt])
+  @@map("workout_sessions")
+}
+
+model WorkoutSet {
+  id          String   @id @default(uuid()) @db.Uuid
+  sessionId   String   @map("session_id") @db.Uuid
+  exerciseId  String   @map("exercise_id") @db.Uuid
+  setNumber   Int      @map("set_number")
+  reps        Int?
+  weightKg    Decimal? @map("weight_kg") @db.Decimal(6, 2)
+  rpe         Int?
+  completedAt DateTime @default(now()) @map("completed_at") @db.Timestamptz(6)
+
+  session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([exerciseId])
+  @@map("sets")
+}

@@ -1,36 +1,110 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gym Tracker
 
-## Getting Started
+Push. Pull. Legs. Track every set, every rep — and push toward a Cavill-style physique.
 
-First, run the development server:
+## Stack
+
+- **Next.js 16** (App Router, Server Components, Server Actions)
+- **Prisma 7** (with `@prisma/adapter-pg` driver adapter)
+- **PostgreSQL** (local)
+- **Tailwind CSS v4**
+- TypeScript
+
+## Features
+
+- **Today view** (`/`) — auto-picks push / pull / legs / rest based on day of week (Mon PUSH, Tue LEGS, Wed PULL, Thu PUSH, Fri LEGS, Sat PULL, Sun REST).
+- **Live session logging** — start a workout, log weight × reps × RPE per set, mark it finished. Shows "last time you did X" next to each exercise as a target to beat.
+- **History** (`/history`) — last 50 sessions with set counts and top weights.
+- **Cavill protocol** (`/guide`) — progressive-overload rules, RPE scale, nutrition targets, weekly scoreboard.
+- Server Actions for every mutation — no REST layer, no client DB access.
+
+## Local setup
+
+### 1. Install deps
+
+```bash
+npm install
+```
+
+### 2. Make sure Postgres is running
+
+```bash
+pg_isready          # should say "accepting connections"
+createdb gym_tracker
+```
+
+### 3. Configure the connection string
+
+`.env` is already pointed at the local DB:
+
+```
+DATABASE_URL="postgresql://<your-username>@localhost:5432/gym_tracker"
+```
+
+Adjust username if yours isn't the macOS default.
+
+### 4. Migrate + seed
+
+```bash
+npm run db:migrate   # applies the init migration
+npm run db:seed      # inserts all 15 exercises from the plan
+```
+
+### 5. Run it
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command            | What it does                                |
+| ------------------ | ------------------------------------------- |
+| `npm run dev`      | Next.js dev server                          |
+| `npm run build`    | Production build                            |
+| `npm run db:migrate` | Apply + create Prisma migrations          |
+| `npm run db:seed`  | Re-seed exercises (idempotent)              |
+| `npm run db:studio`| Open Prisma Studio (GUI for the DB)         |
+| `npm run db:reset` | Wipe the DB and re-migrate + seed           |
 
-## Learn More
+## Schema
 
-To learn more about Next.js, take a look at the following resources:
+Three tables: `exercises`, `workout_sessions`, `sets`. Enum `Day` covers push / pull / legs. Source of truth is `prisma/schema.prisma`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project layout
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+prisma/
+  schema.prisma        # Prisma models
+  seed.ts              # Seed exercises from the training plan
+  migrations/          # Generated migration history
 
-## Deploy on Vercel
+src/
+  app/
+    page.tsx           # Today's workout (day-of-week aware)
+    workout/[day]/     # Push / Pull / Legs pages
+    history/           # Past sessions
+    guide/             # Cavill protocol
+    actions.ts         # Server Actions (start/finish session, log set)
+  components/
+    nav.tsx            # Top + bottom nav
+    workout-view.tsx   # Exercise list + live logger
+    set-logger.tsx     # Per-exercise set input
+    session-controls.tsx
+  lib/
+    prisma.ts          # Singleton Prisma client w/ pg adapter
+    workout-data.ts    # All read queries
+    schedule.ts        # Day-of-week → push/pull/legs/rest
+    types.ts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Routine
+
+**Push** — Incline bench · Chest press · Overhead triceps ext · Lateral raises · Triceps pushdown
+**Pull** — Lat pulldown · Machine row · Rope pulldown · Rear delt · Bicep curl
+**Legs** — Seated hamstring · Leg press · Calves · Overhead press (DB) · Leg extension
+
+Weekly split: **Mon Push · Tue Legs · Wed Pull · Thu Push · Fri Legs · Sat Pull · Sun Rest.**
