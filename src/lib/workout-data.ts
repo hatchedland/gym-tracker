@@ -14,6 +14,7 @@ export type ProgressionPoint = {
   topReps: number;
 };
 
+// Exercises are a global catalog, not per-user.
 export async function getExercises(day: Trainable): Promise<ExerciseDTO[]> {
   const rows = await prisma.exercise.findMany({
     where: { day: day as PrismaDay },
@@ -31,10 +32,11 @@ export async function getExercises(day: Trainable): Promise<ExerciseDTO[]> {
 }
 
 export async function getActiveSession(
+  userId: string,
   day: Trainable,
 ): Promise<WorkoutSessionDTO | null> {
   const row = await prisma.workoutSession.findFirst({
-    where: { day: day as PrismaDay, completedAt: null },
+    where: { userId, day: day as PrismaDay, completedAt: null },
     orderBy: { startedAt: "desc" },
   });
   if (!row) return null;
@@ -46,6 +48,7 @@ export async function getActiveSession(
   };
 }
 
+/** Sets are scoped via session — caller must ensure the session belongs to the user. */
 export async function getSetsForSession(
   sessionId: string,
 ): Promise<WorkoutSetDTO[]> {
@@ -64,8 +67,10 @@ export async function getSetsForSession(
   }));
 }
 
-/** Best (heaviest × most reps) set per exercise from the most recent completed session of that day. */
+/** Best (heaviest × most reps) set per exercise from the most recent completed
+ *  session of that day for this user. */
 export async function getLastBests(
+  userId: string,
   day: Trainable,
   exerciseIds: string[],
   excludeSessionId: string | null,
@@ -75,6 +80,7 @@ export async function getLastBests(
 
   const lastSession = await prisma.workoutSession.findFirst({
     where: {
+      userId,
       day: day as PrismaDay,
       completedAt: { not: null },
       ...(excludeSessionId ? { NOT: { id: excludeSessionId } } : {}),
@@ -108,13 +114,15 @@ export async function getLastBests(
 }
 
 /** Top set (heaviest weight, breaking ties by reps) for each of the last N
- *  completed sessions for a given exercise. Returns oldest → newest. */
+ *  completed sessions of THIS user for a given exercise. Oldest → newest. */
 export async function getProgression(
+  userId: string,
   exerciseId: string,
   limit = 6,
 ): Promise<ProgressionPoint[]> {
   const sessions = await prisma.workoutSession.findMany({
     where: {
+      userId,
       completedAt: { not: null },
       sets: { some: { exerciseId } },
     },

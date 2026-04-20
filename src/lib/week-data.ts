@@ -14,13 +14,17 @@ export type WeekDot = {
 /** Monday-anchored week that wraps a reference date.
  *  Returns 7 dots from Mon → Sun with `trained` true if a completed
  *  session exists on that calendar date. */
-export async function getWeekSummary(ref: Date = new Date()): Promise<WeekDot[]> {
+export async function getWeekSummary(
+  userId: string,
+  ref: Date = new Date(),
+): Promise<WeekDot[]> {
   const monday = startOfMonday(ref);
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 7);
 
   const sessions = await prisma.workoutSession.findMany({
     where: {
+      userId,
       startedAt: { gte: monday, lt: sunday },
     },
     select: { startedAt: true, completedAt: true },
@@ -54,7 +58,7 @@ export async function getWeekSummary(ref: Date = new Date()): Promise<WeekDot[]>
   return dots;
 }
 
-export async function getStreak(): Promise<number> {
+export async function getStreak(userId: string): Promise<number> {
   // Count consecutive days back from today where: either today trained OR it was a planned rest day. Gap on a trainable day that wasn't completed ends the streak.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -63,7 +67,7 @@ export async function getStreak(): Promise<number> {
   horizon.setDate(today.getDate() - 120);
 
   const sessions = await prisma.workoutSession.findMany({
-    where: { completedAt: { not: null, gte: horizon } },
+    where: { userId, completedAt: { not: null, gte: horizon } },
     select: { startedAt: true },
   });
   const trained = new Set(sessions.map((s) => ymd(s.startedAt)));

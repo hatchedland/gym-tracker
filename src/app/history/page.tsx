@@ -5,6 +5,7 @@ import { DAY_LABEL } from "@/lib/schedule";
 import type { Trainable } from "@/lib/types";
 import { WeekStrip } from "@/components/week-strip";
 import { getStreak, getWeekSummary } from "@/lib/week-data";
+import { requireUser } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +25,9 @@ const DAY_ACCENT: Record<Trainable, string> = {
   legs: "from-emerald-500 to-lime-500",
 };
 
-async function getHistory(): Promise<HistoryRow[]> {
+async function getHistory(userId: string): Promise<HistoryRow[]> {
   const sessions = await prisma.workoutSession.findMany({
+    where: { userId },
     orderBy: { startedAt: "desc" },
     take: 50,
     include: { sets: { select: { weightKg: true, reps: true } } },
@@ -68,10 +70,11 @@ function duration(a: string, b: string | null) {
 }
 
 export default async function HistoryPage() {
+  const user = await requireUser();
   const [rows, streak, weekDots] = await Promise.all([
-    getHistory(),
-    getStreak(),
-    getWeekSummary(),
+    getHistory(user.id),
+    getStreak(user.id),
+    getWeekSummary(user.id),
   ]);
 
   const weekTrained = weekDots.filter((d) => d.trained).length;

@@ -7,6 +7,7 @@ import {
   getSetsForSession,
 } from "@/lib/workout-data";
 import { getWeekSummary } from "@/lib/week-data";
+import { requireUser } from "@/lib/current-user";
 import type { Day } from "@/lib/schedule";
 import { DAY_LABEL } from "@/lib/schedule";
 import { SetLogger } from "./set-logger";
@@ -27,16 +28,17 @@ export async function WorkoutView({
   heading: string;
   subheading?: string;
 }) {
+  const user = await requireUser();
   const [exercises, session, weekDots] = await Promise.all([
     getExercises(day),
-    getActiveSession(day),
-    getWeekSummary(),
+    getActiveSession(user.id, day),
+    getWeekSummary(user.id),
   ]);
 
   const [sets, lastBests, progressions] = await Promise.all([
     session ? getSetsForSession(session.id) : Promise.resolve([]),
-    getLastBests(day, exercises.map((e) => e.id), session?.id ?? null),
-    Promise.all(exercises.map((e) => getProgression(e.id, 6))).then(
+    getLastBests(user.id, day, exercises.map((e) => e.id), session?.id ?? null),
+    Promise.all(exercises.map((e) => getProgression(user.id, e.id, 6))).then(
       (arr) => new Map(exercises.map((e, i) => [e.id, arr[i]])),
     ),
   ]);

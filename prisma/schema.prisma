@@ -1,5 +1,4 @@
 // Gym Tracker — Prisma schema
-// Run `npx prisma migrate dev --name init` after filling DATABASE_URL.
 
 generator client {
   provider = "prisma-client-js"
@@ -32,14 +31,16 @@ model Exercise {
 
 model WorkoutSession {
   id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id")
   day         Day
   startedAt   DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
   completedAt DateTime? @map("completed_at") @db.Timestamptz(6)
   notes       String?
   sets        WorkoutSet[]
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([startedAt(sort: Desc)])
-  @@index([day, completedAt])
+  @@index([userId, startedAt(sort: Desc)])
+  @@index([userId, day, completedAt])
   @@map("workout_sessions")
 }
 
@@ -59,4 +60,74 @@ model WorkoutSet {
   @@index([sessionId])
   @@index([exerciseId])
   @@map("sets")
+}
+
+// ──────────────────── Better Auth ────────────────────
+// These four models are required by better-auth. Field names match the
+// library's expectations (camelCase) so we don't need to remap.
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions        Session[]
+  accounts        Account[]
+  workoutSessions WorkoutSession[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }

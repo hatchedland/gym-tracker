@@ -4,6 +4,7 @@ import { WorkoutView } from "@/components/workout-view";
 import { RestHero } from "@/components/workout-hero";
 import { todayDay, todayName } from "@/lib/schedule";
 import { getWeekSummary } from "@/lib/week-data";
+import { requireUser } from "@/lib/current-user";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,8 @@ export default async function HomePage() {
   const dayName = todayName();
 
   if (day === "rest") {
-    const weekDots = await getWeekSummary();
+    const user = await requireUser();
+    const weekDots = await getWeekSummary(user.id);
     return (
       <div className="space-y-6">
         <RestHero weekDots={weekDots} />
